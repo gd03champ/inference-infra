@@ -1,0 +1,12 @@
+nodeSelector:
+  nvidia.com/gpu.present: "true"
+tolerations:
+  - key: llm-d.ai/role
+    operator: Exists
+    effect: NoSchedule
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  honorLabels: true
+  additionalLabels:
+    release: kube-prometheus-stack

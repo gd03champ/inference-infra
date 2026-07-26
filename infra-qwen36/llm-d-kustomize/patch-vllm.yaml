@@ -1,0 +1,90 @@
+# patch-vllm.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decode
+spec:
+  replicas: 1
+  template:
+    spec:
+      nodeSelector:
+        llm-d.ai/role: baseline-qwen36
+      tolerations:
+        - key: llm-d.ai/role
+          operator: Equal
+          value: baseline-qwen36
+          effect: NoSchedule
+      containers:
+        - name: modelserver
+          command: ["vllm", "serve"]
+          args:
+            - "Qwen/Qwen3.6-27B-FP8"
+
+            - "--disable-access-log-for-endpoints=/health,/metrics,/v1/models"
+            - "--gpu-memory-utilization=0.95"
+            - "--tensor-parallel-size=1"
+            - "--max-model-len=128192"
+            - "--reasoning-parser=qwen3"
+            - "--enable-auto-tool-choice"
+            - "--tool-call-parser=qwen3_coder"
+
+            # MTP #will test mtp after verifiying tool call
+            - "--speculative-config"
+            - '{"method":"qwen3_next_mtp","num_speculative_tokens":3}'
+
+            #- "--kv-cache-dtype=fp8_e4m3"  not sure what it is - claude added this
+            #- "--language-model-only" #for disabling vision encoder - saves KV bandwidth
+
+            #- "--enforce-eager" # for OOM crash fix inspection | trades performance for concurrency
+            #160 breaks | 150 works - figired out optimum number for for l40s + qwen-3.6-27b-fp8b
+            - "--max-num-seqs=32" # for OOM crash fix inspection | trades concurrency for performance
+
+            
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: llm-d-hf-token
+                  key: HF_TOKEN
+          resources:
+            limits:
+              cpu: '16'
+              memory: 128Gi
+              nvidia.com/gpu: 1
+            requests:
+              cpu: '8'
+              memory: 64Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - mountPath: /dev/shm
+              name: shm
+            - mountPath: /.cache
+              name: torch-compile-cache
+            - mountPath: /.triton
+              name: triton-cache
+            - mountPath: /.config
+              name: vllm-config
+          startupProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+        - name: torch-compile-cache
+          emptyDir: {}
+        - name: triton-cache
+          emptyDir: {}
+        - name: vllm-config
+          emptyDir: {}

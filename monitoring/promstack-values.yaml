@@ -1,0 +1,20 @@
+prometheus-node-exporter:
+  enabled: false
+nodeExporter:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          resources:
+            requests:
+              storage: 20Gi
+
+grafana:
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 5Gi

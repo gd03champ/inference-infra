@@ -1,0 +1,38 @@
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: qwen36-decode-scaler
+  namespace: infra-qwen36
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: optimized-baseline-nvidia-gpu-vllm-qwen36-decode
+  minReplicaCount: 1          # floor while there is any traffic
+  maxReplicaCount: 4          # nodepool baseline-qwen36 GPU limit
+  pollingInterval: 30         # evaluate metrics every 30s
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 600   # brief confirm for 10mins before scaling
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 300            # at most +1 pod / 5min (matches startup time)
+        scaleDown:
+          stabilizationWindowSeconds: 600   # 10m of sustained low load before removing
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 600            # at most -1 pod / 10min
+  triggers:
+    # Signal: EPP pool average queue size
+    - type: prometheus
+      metricType: Value
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+        metricName: epp_pool_queue_size
+        query: sum(llm_d_epp_average_queue_size{namespace="infra-qwen36"})
+        threshold: "5"                     # add a pod when avg queue/pod > 5

@@ -1,0 +1,74 @@
+# for general non-gpu nodes
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: system
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  role: "KarpenterNodeRole-genai-systems"
+  subnetSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+  securityGroupSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+---
+# reused by both prefil and decode node pools for general l4s
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: gpu
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - name: "amazon-eks-node-al2023-x86_64-nvidia-*"
+  role: "KarpenterNodeRole-genai-systems"
+  subnetSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+  securityGroupSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs: {volumeSize: 100Gi, volumeType: gp3, deleteOnTermination: true}
+---
+# nodeclass for l40s - medium size models deployment | qwen-3.6-27b-fp8bit
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: gpu-l40s
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - name: "amazon-eks-node-al2023-x86_64-nvidia-*"
+  role: "KarpenterNodeRole-genai-systems"
+  subnetSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+  securityGroupSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+
+# instance itself has 1.9tb of SSD
+#  blockDeviceMappings:
+#    - deviceName: /dev/xvda
+#      ebs: {volumeSize: 900Gi, volumeType: gp3, deleteOnTermination: true}   # 27GB weights + headroom, local NVMe is fine
+  instanceStorePolicy: RAID0
+---
+# nodeclass for h200s - bigger models deployment | glm5.2-fp8b
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: gpu-h200
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - name: "amazon-eks-node-al2023-x86_64-nvidia-*"
+  role: "KarpenterNodeRole-genai-systems"
+  subnetSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+  securityGroupSelectorTerms:
+    - tags: {karpenter.sh/discovery: "genai-systems"}
+  
+# instance itself has 3tb of SSD
+#  blockDeviceMappings:
+#    - deviceName: /dev/xvda
+#      ebs: {volumeSize: 900Gi, volumeType: gp3, deleteOnTermination: true}   # 750GB weights + headroom, local NVMe helps but EBS is your safety net
+  instanceStorePolicy: RAID0

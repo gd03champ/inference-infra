@@ -1,0 +1,694 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "llm-d Endpoint Picker (EPP) — request routing, scheduling, pool saturation, prefix-cache and latency SLOs for the inference gateway extension serving vLLM pools. Complements the per-pod vLLM dashboards by showing how the EPP distributes and schedules traffic across the pool.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "liveNow": false,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["llm-d", "epp", "inference", "vllm", "gateway"],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "refresh": 1,
+        "regex": ""
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(llm_d_epp_info, namespace)",
+        "query": { "query": "label_values(llm_d_epp_info, namespace)", "refId": "namespace" },
+        "current": {},
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "pool",
+        "label": "Inference pool",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(llm_d_epp_average_kv_cache_utilization{namespace=~\"$namespace\"}, name)",
+        "query": { "query": "label_values(llm_d_epp_average_kv_cache_utilization{namespace=~\"$namespace\"}, name)", "refId": "pool" },
+        "current": {},
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "model",
+        "label": "Model",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(llm_d_epp_request_total{namespace=~\"$namespace\"}, model_name)",
+        "query": { "query": "label_values(llm_d_epp_request_total{namespace=~\"$namespace\"}, model_name)", "refId": "model" },
+        "current": {},
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "llm-d EPP — Endpoint Picker & Routing",
+  "uid": "llm-d-epp-routing",
+  "version": 2,
+  "weekStart": "",
+  "panels": [
+    {
+      "type": "row",
+      "title": "Overview / Golden Signals",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100
+    },
+    {
+      "type": "stat",
+      "title": "Request rate",
+      "description": "Total requests routed by the EPP per second across the selected pools/models.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "blue" } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value", "justifyMode": "center" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_request_total{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Running requests",
+      "description": "In-flight requests currently being served across the pool (llm_d_epp_request_running).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "purple" } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value", "justifyMode": "center" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(llm_d_epp_request_running{namespace=~\"$namespace\", model_name=~\"$model\"})" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Ready endpoints",
+      "description": "Number of ready backend endpoints (vLLM pods) the EPP can route to for the selected pool.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 1 }, { "color": "green", "value": 2 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(llm_d_epp_ready_endpoints{namespace=~\"$namespace\", name=~\"$pool\"})" }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Avg KV-cache utilization",
+      "description": "Pool-average KV-cache utilization the EPP observes across backend pods — its primary load signal for routing. As this nears 1.0, requests queue and TTFT climbs.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 1 },
+      "id": 5,
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.8 }, { "color": "red", "value": 0.95 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true, "orientation": "auto" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "avg(llm_d_epp_average_kv_cache_utilization{namespace=~\"$namespace\", name=~\"$pool\"})" }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Scheduling success rate",
+      "description": "Fraction of scheduling attempts that successfully picked an endpoint (llm_d_epp_scheduler_attempts_total). Below 100% means some requests found no schedulable pod.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 1 },
+      "id": 4,
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 0.95 }, { "color": "green", "value": 0.99 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true, "orientation": "auto" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_scheduler_attempts_total{namespace=~\"$namespace\", status=\"success\"}[$__rate_interval])) / clamp_min(sum(rate(llm_d_epp_scheduler_attempts_total{namespace=~\"$namespace\"}[$__rate_interval])), 1e-9)" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "EPP build",
+      "description": "Running EPP version / commit (llm_d_epp_info).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 1 },
+      "id": 6,
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^build_ref$/" }, "colorMode": "none", "graphMode": "none", "textMode": "name", "justifyMode": "center" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "llm_d_epp_info{namespace=~\"$namespace\"}", "format": "table", "instant": true }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Latency SLOs (TTFT / ITL / TPOT / E2E)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101
+    },
+    {
+      "type": "stat",
+      "title": "TTFT p50 / p99",
+      "description": "Headline time-to-first-token now. The sparkline shows recent trend; use the heatmap below for the full distribution.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 5, "x": 0, "y": 8 },
+      "id": 10,
+      "fieldConfig": {
+        "defaults": { "unit": "s", "decimals": 3, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value_and_name", "justifyMode": "auto" },
+      "targets": [
+        { "refId": "p50", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.50, sum by (le) (rate(llm_d_epp_request_ttft_seconds_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval])))" },
+        { "refId": "p99", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le) (rate(llm_d_epp_request_ttft_seconds_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval])))" }
+      ]
+    },
+    {
+      "type": "heatmap",
+      "title": "TTFT distribution (heatmap)",
+      "description": "Full time-to-first-token distribution over time (llm_d_epp_request_ttft_seconds). Bright bands show where the bulk of requests land; a rising tail is visible long before it moves p99.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 19, "x": 5, "y": 8 },
+      "id": 11,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": { "scheme": "Turbo", "mode": "scheme", "steps": 64, "reverse": false },
+        "yAxis": { "unit": "s", "axisPlacement": "left" },
+        "legend": { "show": true },
+        "tooltip": { "mode": "single", "yHistogram": true },
+        "rowsFrame": { "layout": "auto" },
+        "cellValues": {}
+      },
+      "fieldConfig": { "defaults": { "custom": { "hideFrom": { "tooltip": false, "viz": false, "legend": false } } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "format": "heatmap", "legendFormat": "{{le}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (le) (rate(llm_d_epp_request_ttft_seconds_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "ITL p50 / p99",
+      "description": "Streaming inter-token latency headline (llm_d_epp_request_streaming_itl_seconds).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 5, "x": 0, "y": 16 },
+      "id": 12,
+      "fieldConfig": {
+        "defaults": { "unit": "s", "decimals": 3, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.05 }, { "color": "red", "value": 0.1 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value_and_name", "justifyMode": "auto" },
+      "targets": [
+        { "refId": "p50", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.50, sum by (le) (rate(llm_d_epp_request_streaming_itl_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" },
+        { "refId": "p99", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le) (rate(llm_d_epp_request_streaming_itl_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" }
+      ]
+    },
+    {
+      "type": "heatmap",
+      "title": "Inter-Token Latency distribution (heatmap)",
+      "description": "Per-token streaming latency distribution over time (llm_d_epp_request_streaming_itl_seconds) — smoothness of token delivery during generation.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 19, "x": 5, "y": 16 },
+      "id": 13,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": { "scheme": "Turbo", "mode": "scheme", "steps": 64, "reverse": false },
+        "yAxis": { "unit": "s", "axisPlacement": "left" },
+        "legend": { "show": true },
+        "tooltip": { "mode": "single", "yHistogram": true },
+        "rowsFrame": { "layout": "auto" },
+        "cellValues": {}
+      },
+      "fieldConfig": { "defaults": { "custom": { "hideFrom": { "tooltip": false, "viz": false, "legend": false } } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "format": "heatmap", "legendFormat": "{{le}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (le) (rate(llm_d_epp_request_streaming_itl_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval]))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "NTPOT percentiles",
+      "description": "Normalized time-per-output-token (llm_d_epp_request_ntpot_seconds): end-to-end duration normalized by output tokens. Captures total serving efficiency including queueing, unlike raw ITL. Trend is the job here, so a line.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 14,
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "p50", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.50, sum by (le) (rate(llm_d_epp_request_ntpot_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" },
+        { "refId": "p90", "legendFormat": "p90", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.90, sum by (le) (rate(llm_d_epp_request_ntpot_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" },
+        { "refId": "p99", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le) (rate(llm_d_epp_request_ntpot_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "End-to-end request duration",
+      "description": "Full request duration seen by the EPP (llm_d_epp_request_duration_seconds), p50/p99 by model.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 15,
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "p50", "legendFormat": "p50 {{model_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.50, sum by (le, model_name) (rate(llm_d_epp_request_duration_seconds_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval])))" },
+        { "refId": "p99", "legendFormat": "p99 {{model_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le, model_name) (rate(llm_d_epp_request_duration_seconds_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval])))" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Scheduling & Routing",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "id": 102
+    },
+    {
+      "type": "piechart",
+      "title": "Routing share across endpoints",
+      "description": "Part-to-whole: share of successfully scheduled requests sent to each backend endpoint (vLLM pod) over the window. An even split means the router is balancing load; a dominant slice means hot-spotting.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 33 },
+      "id": 21,
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["mean"] },
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "displayLabels": ["percent"]
+      },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{endpoint_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (endpoint_name) (rate(llm_d_epp_scheduler_attempts_total{namespace=~\"$namespace\", status=\"success\"}[$__rate_interval]))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Routing distribution over time",
+      "description": "Per-endpoint successful-scheduling rate as a stacked area (llm_d_epp_scheduler_attempts_total). Shows how balance shifts as pods scale in/out or saturate.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 16, "x": 8, "y": 33 },
+      "id": 22,
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 30, "stacking": { "mode": "normal" }, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["last", "mean"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{endpoint_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (endpoint_name) (rate(llm_d_epp_scheduler_attempts_total{namespace=~\"$namespace\", status=\"success\"}[$__rate_interval]))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduler attempts by status",
+      "description": "Rate of endpoint-picking attempts split by outcome (llm_d_epp_scheduler_attempts_total). Failures indicate no schedulable endpoint (all pods saturated / filtered out).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 42 },
+      "id": 20,
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20, "stacking": { "mode": "normal" }, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "success" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["last"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{status}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (status) (rate(llm_d_epp_scheduler_attempts_total{namespace=~\"$namespace\"}[$__rate_interval]))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduler decision latency (e2e)",
+      "description": "How long the EPP takes to make a full scheduling decision per request (llm_d_epp_scheduler_e2e_duration_seconds). This is added to every request's TTFT — keep it sub-millisecond.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 42 },
+      "id": 23,
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["last", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "p50", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.50, sum by (le) (rate(llm_d_epp_scheduler_e2e_duration_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" },
+        { "refId": "p90", "legendFormat": "p90", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.90, sum by (le) (rate(llm_d_epp_scheduler_e2e_duration_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" },
+        { "refId": "p99", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le) (rate(llm_d_epp_scheduler_e2e_duration_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests by priority & fairness flow",
+      "description": "Request rate broken down by priority and fairness_id (llm_d_epp_request_total) — how flow-control / fairness classes share the pool.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 42 },
+      "id": 24,
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 25, "stacking": { "mode": "normal" }, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["last"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "prio={{priority}} flow={{fairness_id}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (priority, fairness_id) (rate(llm_d_epp_request_total{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Pool Health & Saturation",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
+      "id": 103
+    },
+    {
+      "type": "bargauge",
+      "title": "Per-endpoint queue depth",
+      "description": "Waiting-queue size for each backend endpoint (llm_d_epp_per_endpoint_queue_size). Compare bars across endpoints — divergence is uneven load the router should be smoothing.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 51 },
+      "id": 33,
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0, "color": { "mode": "continuous-GrYlRd" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 20 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "displayMode": "gradient", "valueMode": "color", "showUnfilled": true },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{endpoint_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "llm_d_epp_per_endpoint_queue_size{namespace=~\"$namespace\", name=~\"$pool\"}" }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Pool load snapshot",
+      "description": "Current pool-average KV-cache utilization, queue size and running requests (llm_d_epp_average_*). Side-by-side gauges give an at-a-glance capacity read.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 51 },
+      "id": 34,
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.8 }, { "color": "red", "value": 0.95 }] } },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "kv" }, "properties": [{ "id": "unit", "value": "percentunit" }, { "id": "max", "value": 1 }, { "id": "min", "value": 0 }, { "id": "displayName", "value": "KV-cache util" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "queue" }, "properties": [{ "id": "unit", "value": "short" }, { "id": "displayName", "value": "Avg queue size" }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 20 }] } }] },
+          { "matcher": { "id": "byFrameRefID", "options": "running" }, "properties": [{ "id": "unit", "value": "short" }, { "id": "displayName", "value": "Avg running" }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } }] }
+        ]
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true, "orientation": "horizontal" },
+      "targets": [
+        { "refId": "kv", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "avg(llm_d_epp_average_kv_cache_utilization{namespace=~\"$namespace\", name=~\"$pool\"})", "instant": true },
+        { "refId": "queue", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "avg(llm_d_epp_average_queue_size{namespace=~\"$namespace\", name=~\"$pool\"})", "instant": true },
+        { "refId": "running", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "avg(llm_d_epp_average_running_requests{namespace=~\"$namespace\", name=~\"$pool\"})", "instant": true }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Ready endpoints (per pool)",
+      "description": "Ready backend endpoints per pool (llm_d_epp_ready_endpoints).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 51 },
+      "id": 35,
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 1 }, { "color": "green", "value": 2 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name", "justifyMode": "auto" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "llm_d_epp_ready_endpoints{namespace=~\"$namespace\", name=~\"$pool\"}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pool saturation over time",
+      "description": "Trend of pool-average KV-cache utilization, queue size and running requests (llm_d_epp_average_*). Watch KV-cache and queue rise together — that's the pool tipping into saturation.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 60 },
+      "id": 36,
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*KV-cache.*" }, "properties": [{ "id": "unit", "value": "percentunit" }, { "id": "custom.axisPlacement", "value": "right" }, { "id": "max", "value": 1 }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "KV-cache util — {{name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "llm_d_epp_average_kv_cache_utilization{namespace=~\"$namespace\", name=~\"$pool\"}" },
+        { "refId": "B", "legendFormat": "queue size — {{name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "llm_d_epp_average_queue_size{namespace=~\"$namespace\", name=~\"$pool\"}" },
+        { "refId": "C", "legendFormat": "running — {{name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "llm_d_epp_average_running_requests{namespace=~\"$namespace\", name=~\"$pool\"}" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Prefix Cache (routing affinity)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 68 },
+      "id": 104
+    },
+    {
+      "type": "gauge",
+      "title": "Prefix-cache hit ratio",
+      "description": "Average approximate prefix-cache hit ratio the indexer estimates (llm_d_epp_prefix_indexer_hit_ratio). Higher = the EPP is routing requests to pods that already hold the prompt prefix, saving prefill compute.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 69 },
+      "id": 40,
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 0.3 }, { "color": "green", "value": 0.6 }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true, "orientation": "auto" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_prefix_indexer_hit_ratio_sum{namespace=~\"$namespace\"}[$__rate_interval])) / clamp_min(sum(rate(llm_d_epp_prefix_indexer_hit_ratio_count{namespace=~\"$namespace\"}[$__rate_interval])), 1e-9)" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Prefix indexer size",
+      "description": "Number of prefix entries currently tracked by the indexer (llm_d_epp_prefix_indexer_size). Reflects working-set size and memory footprint of the cache-aware router.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 69 },
+      "id": 42,
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "purple" } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value", "justifyMode": "center" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{pod}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(llm_d_epp_prefix_indexer_size{namespace=~\"$namespace\"})" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Prefix-cache hit ratio & hit bytes over time",
+      "description": "Trend of average hit ratio (left axis) against bytes served from cached prefixes (right axis) — llm_d_epp_prefix_indexer_hit_ratio / _hit_bytes. Rising hit bytes = prefill compute avoided.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 69 },
+      "id": 41,
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "gradientMode": "opacity" }, "color": { "mode": "palette-classic" }, "unit": "percentunit" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "hit bytes/s" }, "properties": [{ "id": "unit", "value": "Bps" }, { "id": "custom.axisPlacement", "value": "right" }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "mean"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "hit ratio", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_prefix_indexer_hit_ratio_sum{namespace=~\"$namespace\"}[$__rate_interval])) / clamp_min(sum(rate(llm_d_epp_prefix_indexer_hit_ratio_count{namespace=~\"$namespace\"}[$__rate_interval])), 1e-9)" },
+        { "refId": "B", "legendFormat": "hit bytes/s", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_prefix_indexer_hit_bytes_sum{namespace=~\"$namespace\"}[$__rate_interval]))" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Plugin / Scheduler Framework Performance",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 77 },
+      "id": 105,
+      "panels": [
+        {
+          "type": "bargauge",
+          "title": "Plugin p99 latency by extension point",
+          "description": "p99 execution time of scheduler plugins grouped by extension point (llm_d_epp_plugin_duration_seconds). Compare bars to see which stage of the scheduling framework is slowest.",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 78 },
+          "id": 50,
+          "fieldConfig": {
+            "defaults": { "unit": "s", "min": 0, "color": { "mode": "continuous-GrYlRd" } },
+            "overrides": []
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "displayMode": "gradient", "valueMode": "color", "showUnfilled": true },
+          "targets": [
+            { "refId": "A", "legendFormat": "{{extension_point}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le, extension_point) (rate(llm_d_epp_plugin_duration_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" }
+          ]
+        },
+        {
+          "type": "bargauge",
+          "title": "Plugin p99 latency by plugin",
+          "description": "p99 execution time per individual plugin (llm_d_epp_plugin_duration_seconds by plugin_name).",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 78 },
+          "id": 51,
+          "fieldConfig": {
+            "defaults": { "unit": "s", "min": 0, "color": { "mode": "continuous-GrYlRd" } },
+            "overrides": []
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "displayMode": "gradient", "valueMode": "color", "showUnfilled": true },
+          "targets": [
+            { "refId": "A", "legendFormat": "{{plugin_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.99, sum by (le, plugin_name) (rate(llm_d_epp_plugin_duration_seconds_bucket{namespace=~\"$namespace\"}[$__rate_interval])))" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Plugin call rate by plugin",
+          "description": "Invocation rate of each plugin (llm_d_epp_plugin_duration_seconds_count) — sanity check that scorers/pickers fire per request as expected.",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 87 },
+          "id": 52,
+          "fieldConfig": {
+            "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" }, "color": { "mode": "palette-classic" } },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["last"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "refId": "A", "legendFormat": "{{extension_point}} / {{plugin_name}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (extension_point, plugin_name) (rate(llm_d_epp_plugin_duration_seconds_count{namespace=~\"$namespace\"}[$__rate_interval]))" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Token & Payload Sizes",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 78 },
+      "id": 106,
+      "panels": [
+        {
+          "type": "heatmap",
+          "title": "Input tokens distribution",
+          "description": "Distribution of prompt (input) token counts over time (llm_d_epp_request_input_tokens).",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 79 },
+          "id": 60,
+          "options": {
+            "calculate": false, "cellGap": 1,
+            "color": { "scheme": "Blues", "mode": "scheme", "steps": 64, "reverse": false },
+            "yAxis": { "unit": "short", "axisPlacement": "left" },
+            "legend": { "show": true }, "tooltip": { "mode": "single", "yHistogram": true },
+            "rowsFrame": { "layout": "auto" }, "cellValues": {}
+          },
+          "fieldConfig": { "defaults": { "custom": { "hideFrom": { "tooltip": false, "viz": false, "legend": false } } }, "overrides": [] },
+          "targets": [
+            { "refId": "A", "format": "heatmap", "legendFormat": "{{le}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (le) (rate(llm_d_epp_request_input_tokens_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+          ]
+        },
+        {
+          "type": "heatmap",
+          "title": "Output tokens distribution",
+          "description": "Distribution of generated (output) token counts over time (llm_d_epp_request_output_tokens).",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 79 },
+          "id": 61,
+          "options": {
+            "calculate": false, "cellGap": 1,
+            "color": { "scheme": "Greens", "mode": "scheme", "steps": 64, "reverse": false },
+            "yAxis": { "unit": "short", "axisPlacement": "left" },
+            "legend": { "show": true }, "tooltip": { "mode": "single", "yHistogram": true },
+            "rowsFrame": { "layout": "auto" }, "cellValues": {}
+          },
+          "fieldConfig": { "defaults": { "custom": { "hideFrom": { "tooltip": false, "viz": false, "legend": false } } }, "overrides": [] },
+          "targets": [
+            { "refId": "A", "format": "heatmap", "legendFormat": "{{le}}", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum by (le) (rate(llm_d_epp_request_output_tokens_bucket{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Output token throughput",
+          "description": "Aggregate generated-tokens/sec across the pool, from the output-token histogram sum.",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 87 },
+          "id": 62,
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value", "justifyMode": "center" },
+          "targets": [
+            { "refId": "A", "legendFormat": "output tokens/s", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_request_output_tokens_sum{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Input token throughput",
+          "description": "Aggregate prompt-tokens/sec across the pool, from the input-token histogram sum.",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 87 },
+          "id": 63,
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value", "justifyMode": "center" },
+          "targets": [
+            { "refId": "A", "legendFormat": "input tokens/s", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_request_input_tokens_sum{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval]))" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Avg output : input ratio",
+          "description": "Mean generated-to-prompt token ratio — a workload-shape signal (chat vs. summarization vs. long-generation).",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 87 },
+          "id": 64,
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value", "justifyMode": "center" },
+          "targets": [
+            { "refId": "A", "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(llm_d_epp_request_output_tokens_sum{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval])) / clamp_min(sum(rate(llm_d_epp_request_input_tokens_sum{namespace=~\"$namespace\", model_name=~\"$model\"}[$__rate_interval])), 1e-9)" }
+          ]
+        }
+      ]
+    }
+  ]
+}

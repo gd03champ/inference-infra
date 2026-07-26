@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bifrost-data
+  namespace: bifrost
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: gp3
+  resources: {requests: {storage: 5Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bifrost
+  namespace: bifrost
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: bifrost}}
+  template:
+    metadata: {labels: {app: bifrost}}
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: bifrost
+          image: maximhq/bifrost:latest
+          ports: [{containerPort: 8080, name: http}]
+          volumeMounts: [{name: data, mountPath: /app/data}]
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: bifrost-data}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bifrost
+  namespace: bifrost
+spec:
+  selector:
+    app: bifrost
+  ports: [{port: 8080, targetPort: 8080, name: http}]

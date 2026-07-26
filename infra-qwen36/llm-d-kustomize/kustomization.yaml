@@ -1,0 +1,22 @@
+# kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../../recipes/modelserver/base/single-host/default
+
+namePrefix: optimized-baseline-nvidia-gpu-vllm-qwen36-
+
+components:
+  - ../../../../../recipes/modelserver/components/images/gpu-vllm
+  - ../../../../../recipes/modelserver/components/monitoring
+
+labels:
+  - pairs:
+      llm-d.ai/model: qwen3.6-27b
+      llm-d.ai/guide: optimized-baseline
+      llm-d.ai/accelerator-variant: gpu
+      llm-d.ai/accelerator-vendor: nvidia
+    includeSelectors: true
+    includeTemplates: true
+patches:
+  - path: patch-vllm.yaml

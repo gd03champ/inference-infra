@@ -1,0 +1,38 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: istio-system
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+spec:
+  gatewayClassName: istio
+  infrastructure:
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "external"
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+      service.beta.kubernetes.io/aws-load-balancer-security-group-prefix-lists: "pl-0bbaf5fc07815e736" # vpn whitelists
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      allowedRoutes: {namespaces: {from: All}}
+    - name: https-grafana
+      hostname: "watchme.gd03.me"
+      port: 443
+      protocol: HTTPS
+      allowedRoutes: {namespaces: {from: All}}
+      tls: {mode: Terminate, certificateRefs: [{name: watchme-tls}]}
+    - name: https-openwebui
+      hostname: "chat.gd03.me"
+      port: 443
+      protocol: HTTPS
+      allowedRoutes: {namespaces: {from: All}}
+      tls: {mode: Terminate, certificateRefs: [{name: chat-tls}]}
+    - name: https-bifrost
+      hostname: "inference.gd03.me"
+      port: 443
+      protocol: HTTPS
+      allowedRoutes: {namespaces: {from: All}}
+      tls: {mode: Terminate, certificateRefs: [{name: inference-tls}]}
