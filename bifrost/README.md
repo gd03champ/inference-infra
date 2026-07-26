@@ -65,6 +65,12 @@ Clients then call Bifrost with the OpenAI API shape and Bifrost routes to the ri
 backend, or falls back to a hosted provider on overflow (or at night when the GPU nodes
 are shut down).
 
+Bifrost's own observability shows the live traffic flowing through it: per-request logs,
+latency, token counts, and the gateway-level cost that powers the savings math. Here it is
+serving real `Qwen/Qwen3.6-27B-FP8` traffic:
+
+![Bifrost LLM Logs showing live Qwen3.6 inference traffic](../assets/aigateway-logs-dashboard.png)
+
 ## Metrics
 
 `servicemonitor.yaml` scrapes `/metrics` into Prometheus. It carries

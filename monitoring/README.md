@@ -63,7 +63,9 @@ helm upgrade --install dcgm-exporter gpu-helm-charts/dcgm-exporter \
   -n monitoring -f dcgm-exporter-values.yaml
 ```
 
-This gives you per-GPU utilization, memory, temperature, and power in Grafana.
+This gives you per-GPU utilization, memory, temperature, and power in Grafana:
+
+![NVIDIA DCGM GPU dashboard in Grafana](../assets/grafana-dcgm-gpu-dashboard.png)
 
 ## 4. Expose Grafana
 
@@ -82,9 +84,16 @@ kubectl apply -f httproute-grafana.yaml   # watchme.gd03.me -> kube-prometheus-s
 - **llm-d router/EPP** metrics are enabled in the router Helm values
   (`monitoring.prometheus.enabled: true`).
 
+The vLLM advanced dashboard pulls it together into an executive view: success rate, TTFT,
+token throughput (in/out), KV-cache usage, prefix-cache savings, and the scheduler state:
+
+![vLLM advanced monitoring dashboard in Grafana](../assets/grafana-vllm-dashboard.png)
+
 ## 6. EPP dashboard
 
 Import `llm-d-epp-dashboard.json` into Grafana (Dashboards then Import) for llm-d EPP
 metrics: queue size, routing, per-pool stats. I built this one because there was no good
 public dashboard for it, and it is the same signal KEDA scales on, so you can watch the
 autoscaling input and decision together.
+
+![Custom llm-d EPP dashboard: scheduler, pool saturation, prefix cache](../assets/llm-d-epp-dashboard.png)

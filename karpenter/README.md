@@ -166,6 +166,11 @@ kubectl delete -f gpu-smoke-test.yaml
 Deleting the pod takes the node out too, since the GPU pools consolidate 1 minute after
 going empty.
 
+Here Karpenter has provisioned a `g6.xlarge` decode node on demand, and the pod (plus the
+device plugin and DCGM daemons) has landed on it:
+
+![Karpenter provisioning a GPU node and pods scheduling onto it](../assets/karpenter-gpu-node-provisioned.png)
+
 ## 8. Karpenter metrics (optional)
 
 ```bash

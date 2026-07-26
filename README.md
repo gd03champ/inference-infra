@@ -155,6 +155,11 @@ convenience for testing rather than the production front door. Grafana
 For the deeper view (request path, autoscaling loop, KV cache, node topology) see
 [`docs/architecture.md`](docs/architecture.md).
 
+Here is the stack live: the vLLM advanced dashboard serving `Qwen3.6-27B-FP8`, with
+success rate, TTFT, token throughput, and KV/prefix cache all healthy.
+
+![vLLM advanced monitoring dashboard serving Qwen3.6-27B-FP8](assets/grafana-vllm-dashboard.png)
+
 ---
 
 ## Repository layout
@@ -162,6 +167,7 @@ For the deeper view (request path, autoscaling loop, KV cache, node topology) se
 ```
 .
 ├── README.md                     # this file, the full runbook
+├── assets/                       # screenshots used across the READMEs
 ├── docs/
 │   └── architecture.md           # deeper architecture write-up with diagrams
 ├── gp3-storageclass.yaml         # default StorageClass (EBS gp3, WaitForFirstConsumer)

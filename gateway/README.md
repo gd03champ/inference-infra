@@ -113,6 +113,11 @@ kubectl get certificates,challenges,orders -A
 # kubectl delete certificate <name> -n istio-system
 ```
 
+Once it settles, all three certs read `Ready`, their ACME orders `valid`, and the
+challenges are gone:
+
+![cert-manager certificates, challenges and orders all issued and valid](../assets/cert-manager-certificates-ready.png)
+
 ## 8. Attach backends
 
 Each service brings its own `HTTPRoute` that references a listener with `sectionName`.

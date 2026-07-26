@@ -193,7 +193,12 @@ kubectl apply -n $NAMESPACE -k $REPO_ROOT/guides/optimized-baseline/modelserver/
 
 For router/EPP monitoring, enable it in the router Helm values (step 4) and then
 `helm upgrade $GUIDE_NAME-qwen36 ...`. The custom EPP dashboard is at
-[`../monitoring/llm-d-epp-dashboard.json`](../monitoring/llm-d-epp-dashboard.json).
+[`../monitoring/llm-d-epp-dashboard.json`](../monitoring/llm-d-epp-dashboard.json). It
+shows the `optimized-baseline-qwen36` pool: per-endpoint queue depth, KV-cache
+saturation, and the prefix-cache hit ratio, which is the exact signal KEDA scales on
+below:
+
+![llm-d EPP dashboard for the optimized-baseline-qwen36 pool](../assets/llm-d-epp-dashboard.png)
 
 ---
 
